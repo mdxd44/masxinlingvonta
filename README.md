@@ -15,7 +15,7 @@ Compiles Java ByteCode to LLVM IR and native code (for obfuscation purposes). Co
             }
         }
         if (libPath == null) {
-            throw new RuntimeException("No natives found for " + osName + (isX64 ? " x86-64" : " x86"));
+            throw new RuntimeException("No natives found for " + osName + (is64 ? " x86-64" : " x86"));
         }
 
         File libFile;
@@ -40,7 +40,7 @@ Compiles Java ByteCode to LLVM IR and native code (for obfuscation purposes). Co
             throw new UnsatisfiedLinkError("Failed to copy file: " + e.getMessage());
         }
 
-        System.load(file.getAbsolutePath());
+        System.load(libFile.getAbsolutePath());
     }
 ```
 
