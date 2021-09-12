@@ -1,9 +1,7 @@
 package net.superblaubeere27.masxinlingvonta;
 
 import com.google.gson.Gson;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import net.superblaubeere27.masxinlingvaj.MLV;
 import net.superblaubeere27.masxinlingvaj.compiler.MLVCompiler;
 import net.superblaubeere27.masxinlingvaj.compiler.tree.CompilerClass;
