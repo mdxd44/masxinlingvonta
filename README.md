@@ -2,12 +2,54 @@
 
 Compiles Java ByteCode to LLVM IR and native code (for obfuscation purposes). Contributions are welcome!
 
+```java
+    static {
+        boolean is64 = System.getProperty("os.arch").contains("64");
+        String osName = System.getProperty("os.name").toLowerCase();
+        String libPath = null;
+        if (is64) {
+            if (osName.contains("win")) {
+                libPath = "/META-INF/natives/mlv-win64.dll"; // or can be put anywhere
+            } else if (osName.contains("linux")) {
+                libPath = "/META-INF/natives/mlv-linux64.so"; // or can be put anywhere
+            }
+        }
+        if (libPath == null) {
+            throw new RuntimeException("No natives found for " + osName + (isX64 ? " x86-64" : " x86"));
+        }
+
+        File libFile;
+        try {
+            libFile = File.createTempFile("lib", null);
+            libFile.deleteOnExit();
+            if (!libFile.exists()) {
+                throw new IOException("A temp file was expected, but it wasn't created");
+            }
+        } catch (IOException e) {
+            throw new UnsatisfiedLinkError("Failed to create temp file");
+        }
+
+        try (InputStream is = YourMainClass.class.getResourceAsStream(libPath);
+            FileOutputStream fos = new FileOutputStream(libFile)) {
+            byte[] buf = new byte[2048];
+            int read;
+            while ((read = is.read(buf)) != -1) {
+                fos.write(buf, 0, read);
+            }
+        } catch (IOException e) {
+            throw new UnsatisfiedLinkError("Failed to copy file: " + e.getMessage());
+        }
+
+        System.load(file.getAbsolutePath());
+    }
+```
+
 ## Prerequisites
 
 - [LLVM](https://releases.llvm.org/download.html) (For compiling the generated LLVM-IR to native code)
 - [Maven](https://maven.apache.org/) (For building this project)
 - Java 11 ([Download](https://adoptopenjdk.net/releases.html?variant=openjdk11))
-- (For Windows) Windows SDK / Visual Studio with Visual C++ support
+- (For Windows) ~~Windows SDK / Visual Studio with Visual C++ support~~ MSYS2 MinGW64 and `C:\msys64\mingw64\bin` in `PATH` variable
 
 ## Building from source
 

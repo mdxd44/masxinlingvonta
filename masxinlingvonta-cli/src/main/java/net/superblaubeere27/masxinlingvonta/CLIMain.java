@@ -1,8 +1,12 @@
 package net.superblaubeere27.masxinlingvonta;
 
 import com.google.gson.Gson;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import net.superblaubeere27.masxinlingvaj.MLV;
 import net.superblaubeere27.masxinlingvaj.compiler.MLVCompiler;
+import net.superblaubeere27.masxinlingvaj.compiler.tree.CompilerClass;
 import net.superblaubeere27.masxinlingvaj.compiler.tree.CompilerMethod;
 import net.superblaubeere27.masxinlingvaj.preprocessor.AbstractPreprocessor;
 import net.superblaubeere27.masxinlingvaj.preprocessor.AnnotationPreprocessor;
@@ -18,6 +22,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 import static org.bytedeco.llvm.global.LLVM.LLVMPrintModuleToString;
 
@@ -75,6 +81,23 @@ public class CLIMain {
                 new AbstractPreprocessor() {
                     @Override
                     public void init(MLVCompiler compiler, CompilerPreprocessor preprocessor) throws Exception {
+                        for (CompilerClass aClass : compiler.getIndex().getClasses()) {
+                            for (CompilerMethod method : aClass.getMethods()) {
+                                if ((method.getNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0)
+                                    continue;
+                                if (method.getNode().name.startsWith("<"))
+                                    continue;
+
+                                List<Integer> opcodes = Arrays.stream(method.getNode().instructions.toArray())
+                                    .map(AbstractInsnNode::getOpcode)
+                                    .collect(Collectors.toList());
+                                //System.out.println(method.getNode().name + " " + opcodes);
+                                if (!opcodes.contains(Opcodes.DUP2_X1)/* || !(opcode == Opcodes.DUP2_X2)*/) {
+                                    preprocessor.markForCompilation(method);
+                                }
+                            }
+                        }
+                        /*
                         if (finalConfig != null && finalConfig.additionalMethodsToCompile != null) {
                             for (MLVMethod mlvMethod : finalConfig.additionalMethodsToCompile) {
                                 preprocessor.markForCompilation(compiler.getIndex().getMethod(mlvMethod.owner,
@@ -82,6 +105,7 @@ public class CLIMain {
                                                                                               mlvMethod.desc));
                             }
                         }
+                        */
                     }
 
                     @Override
@@ -279,7 +303,7 @@ public class CLIMain {
         String getTargetTriple() {
             switch (this) {
                 case WINDOWS:
-                    return "x86_64-pc-windows";
+                    return "x86_64-pc-windows-gnu";
                 case LINUX:
                     return "x86_64-pc-linux-gnu";
                 case MAC:
