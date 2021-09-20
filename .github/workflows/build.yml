@@ -8,6 +8,7 @@ jobs:
     strategy:
       matrix:
         java: [11]
+        os: [windows-x86_64, linux-x86_64]
       fail-fast: true
     steps:
       - name: Checkout
@@ -24,9 +25,9 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
       - name: Build
-        run: mvn clean package
+        run: mvn -Djavacpp.platform=${{ matrix.os }} clean package
       - name: Upload a build artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: Arifact
+          name: Masxinlingvonta Built For ${{ matrix.os }}
           path: "masxinlingvonta-cli/target/masxinlingvonta-cli-*.jar"
