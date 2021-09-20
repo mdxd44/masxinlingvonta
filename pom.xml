@@ -15,8 +15,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>10</source>
-                    <target>10</target>
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
         </plugins>
@@ -31,7 +31,7 @@
     <properties>
         <maven.MLVCompiler.source>11</maven.MLVCompiler.source>
         <maven.MLVCompiler.target>11</maven.MLVCompiler.target>
-        <asm.version>9.1</asm.version>
+        <asm.version>9.2</asm.version>
     </properties>
 
     <repositories>
@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>llvm-platform</artifactId>
-            <version>11.1.0-1.5.5</version>
+            <version>12.0.1-1.5.6</version>
         </dependency>
         <dependency>
             <groupId>com.github.pcj</groupId>

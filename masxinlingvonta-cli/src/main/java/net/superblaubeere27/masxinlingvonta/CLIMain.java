@@ -1,6 +1,8 @@
 package net.superblaubeere27.masxinlingvonta;
 
 import com.google.gson.Gson;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import net.superblaubeere27.masxinlingvaj.MLV;
 import net.superblaubeere27.masxinlingvaj.compiler.MLVCompiler;
@@ -86,24 +88,41 @@ public class CLIMain {
                                 if (method.getNode().name.startsWith("<"))
                                     continue;
 
-                                List<Integer> opcodes = Arrays.stream(method.getNode().instructions.toArray())
+                                List<Integer> methodOpcodes = Arrays.stream(method.getNode().instructions.toArray())
                                     .map(AbstractInsnNode::getOpcode)
                                     .collect(Collectors.toList());
+
+                                List<String> ignoredMethods = new ArrayList<>();
+                                if (finalConfig != null && finalConfig.ignoredMethods != null) {
+                                    for (MLVMethod mlvMethod : finalConfig.ignoredMethods) {
+                                        ignoredMethods.add(mlvMethod.name);
+                                    }
+                                }
+
                                 //System.out.println(method.getNode().name + " " + opcodes);
-                                if (!opcodes.contains(Opcodes.DUP2_X1)/* || !(opcode == Opcodes.DUP2_X2)*/) {
-                                    preprocessor.markForCompilation(method);
+                                if (!methodOpcodes.contains(Opcodes.DUP2_X1) && !methodOpcodes.contains(Opcodes.DUP2_X2)) {
+                                    if (!ignoredMethods.isEmpty()) {
+                                        if (!ignoredMethods.contains(method.getNode().name)) {
+                                            preprocessor.markForCompilation(method);
+                                        } else {
+                                            System.out.println("Method \""
+                                                + method.getNode().name
+                                                + "\" (Parent: \"" + aClass.getName()
+                                                + "\", desc: \"" + method.getNode().desc
+                                                + "\") ignored by config.");
+                                        }
+                                    } else {
+                                        preprocessor.markForCompilation(method);
+                                    }
+                                } else {
+                                    System.out.println("Method \""
+                                        + method.getNode().name
+                                        + "\" (Parent: \"" + aClass.getName()
+                                        + "\", desc: \"" + method.getNode().desc
+                                        + "\") ignored.");
                                 }
                             }
                         }
-                        /*
-                        if (finalConfig != null && finalConfig.additionalMethodsToCompile != null) {
-                            for (MLVMethod mlvMethod : finalConfig.additionalMethodsToCompile) {
-                                preprocessor.markForCompilation(compiler.getIndex().getMethod(mlvMethod.owner,
-                                                                                              mlvMethod.name,
-                                                                                              mlvMethod.desc));
-                            }
-                        }
-                        */
                     }
 
                     @Override
@@ -137,7 +156,7 @@ public class CLIMain {
         String outputDir = parse.getOptionValue("outputDir");
 
         try {
-            File tmpIROutput = File.createTempFile("mlv_llvmir", ".ll");
+            File tmpIROutput = File.createTempFile("llvmir", ".ll");
 
             try {
                 var ir = LLVMPrintModuleToString(mlv.getLLVMModule()).getStringBytes();
@@ -172,7 +191,7 @@ public class CLIMain {
     }
 
     private static void compileFor(File irInput, String llvmBasePath, String outputDir, OS os) throws IOException {
-        File tmpObjFile = File.createTempFile("mlv_obj", ".o");
+        File tmpObjFile = File.createTempFile("tmp_obj", ".o");
 
         System.out.println("Compiling for " + os + "...");
 
@@ -189,7 +208,7 @@ public class CLIMain {
                                                          "-target",
                                                          os.getTargetTriple(),
                                                          "-o",
-                                                         getFilePath(outputDir, "mlv-win64.dll"),
+                                                         getFilePath(outputDir, "win64.dll"),
                                                          irInput.getAbsolutePath()
                     ).start();
 
@@ -224,14 +243,14 @@ public class CLIMain {
                 linkerProcess = new ProcessBuilder(getFilePath(llvmBasePath, "ld.lld"),
                                                    "-shared",
                                                    "-o",
-                                                   getFilePath(outputDir, "mlv-linux64.so"),
+                                                   getFilePath(outputDir, "linux64.so"),
                                                    tmpObjFile.getAbsolutePath()
                 ).start();
             } else if (os == OS.MAC) {
                 linkerProcess = new ProcessBuilder(getFilePath(llvmBasePath, "ld64.lld"),
                                                    "-dylib",
                                                    "-o",
-                                                   getFilePath(outputDir, "mlv-macosx.dynlib"),
+                                                   getFilePath(outputDir, "macosx.dynlib"),
                                                    tmpObjFile.getAbsolutePath()
                 ).start();
             } else {
@@ -269,7 +288,7 @@ public class CLIMain {
 
     @SuppressWarnings("unused")
     private static class MLVCLIConfig {
-        private MLVMethod[] additionalMethodsToCompile;
+        private MLVMethod[] ignoredMethods;
     }
 
     @SuppressWarnings("unused")

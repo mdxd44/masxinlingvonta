@@ -1,5 +1,5 @@
 {
-  "additionalMethodsToCompile": [
+  "ignoredMethods": [
     {
       "owner": "Test",
       "name": "test",

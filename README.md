@@ -9,9 +9,9 @@ Compiles Java ByteCode to LLVM IR and native code (for obfuscation purposes). Co
         String libPath = null;
         if (is64) {
             if (osName.contains("win")) {
-                libPath = "/META-INF/natives/mlv-win64.dll"; // or can be put anywhere
+                libPath = "/META-INF/natives/win64.dll"; // or can be put anywhere
             } else if (osName.contains("linux")) {
-                libPath = "/META-INF/natives/mlv-linux64.so"; // or can be put anywhere
+                libPath = "/META-INF/natives/linux64.so"; // or can be put anywhere
             }
         }
         if (libPath == null) {
@@ -150,9 +150,10 @@ Yes|`-help`| |Prints a help page|
 
 Here is an example configuration (should be self-explanatory)
 
+owner and desc currently unsupported
 ```JSON
 {
-  "additionalMethodsToCompile": [
+  "ignoredMethods": [
     {
       "owner": "net/superblaubeere27/Main",
       "name": "superSophisticatedLicenseCheck",

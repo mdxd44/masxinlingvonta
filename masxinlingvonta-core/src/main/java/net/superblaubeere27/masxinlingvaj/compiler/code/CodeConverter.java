@@ -598,6 +598,7 @@ public class CodeConverter implements Opcodes {
 //            case MULTIANEWARRAY: // visitMultiANewArrayInsn
         }
 
+        System.out.println("unsupported opcode: " + opcode);
         throw new IllegalArgumentException("Unknown opcode");
     }
 

@@ -20,7 +20,7 @@
         <dependency>
             <groupId>net.superblaubeere27</groupId>
             <artifactId>masxinlingvonta-annotations</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.parent.version}</version>
             <scope>provided</scope>
         </dependency>
 

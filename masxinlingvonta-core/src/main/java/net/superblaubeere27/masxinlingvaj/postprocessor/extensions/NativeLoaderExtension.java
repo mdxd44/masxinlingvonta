@@ -25,13 +25,13 @@ public class NativeLoaderExtension {
 
             if (isX64) {
                 if (lowerCase.contains("win")) {
-                    name = "mlv-win64.dll";
+                    name = "win64.dll";
                 }
                 if (lowerCase.contains("linux")) {
-                    name = "mlv-linux64.so";
+                    name = "linux64.so";
                 }
                 if (lowerCase.contains("mac")) {
-                    name = "mlv-macosx.dylib";
+                    name = "macosx.dylib";
                 }
             }
 
