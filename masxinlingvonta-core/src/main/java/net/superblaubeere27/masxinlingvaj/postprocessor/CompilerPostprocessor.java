@@ -8,6 +8,7 @@ import java.util.List;
 
 public class CompilerPostprocessor {
     private static final List<AbstractPostprocessor> PREPROCESSORS = Arrays.asList(
+            new LoaderAdderProstprocessor(),
 //            new LambdaPrecompiler(),
             new StandardPostProcessor()
     );

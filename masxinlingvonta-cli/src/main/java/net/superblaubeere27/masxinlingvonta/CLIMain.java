@@ -1,9 +1,16 @@
 package net.superblaubeere27.masxinlingvonta;
 
 import com.google.gson.Gson;
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 import net.superblaubeere27.masxinlingvaj.MLV;
 import net.superblaubeere27.masxinlingvaj.compiler.MLVCompiler;
 import net.superblaubeere27.masxinlingvaj.compiler.tree.CompilerClass;
@@ -43,6 +50,9 @@ public class CLIMain {
         options.addOption("c", "config", true, "compiler config");
         options.addOption("help", "prints a help page");
 
+        options.addOption("createNatives", "creates natives in outputDir");
+        options.addOption("inJarNativesPath", true, "path to natives");
+
         DefaultParser parser = new DefaultParser();
 
         CommandLine parse;
@@ -81,6 +91,13 @@ public class CLIMain {
                 new AbstractPreprocessor() {
                     @Override
                     public void init(MLVCompiler compiler, CompilerPreprocessor preprocessor) throws Exception {
+                        List<MLVCLIConfigPair> ignoredMethodsPatterns = new ArrayList<>();
+                        if (finalConfig != null && finalConfig.ignoredMethods != null) {
+                            for (MLVMethod mlvMethod : finalConfig.ignoredMethods) {
+                                ignoredMethodsPatterns.add(new MLVCLIConfigPair(compileExcludePattern(mlvMethod.owner), compileExcludePattern(mlvMethod.name), compileExcludePattern(mlvMethod.desc)));
+                            }
+                        }
+
                         for (CompilerClass aClass : compiler.getIndex().getClasses()) {
                             for (CompilerMethod method : aClass.getMethods()) {
                                 if ((method.getNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0)
@@ -92,34 +109,27 @@ public class CLIMain {
                                     .map(AbstractInsnNode::getOpcode)
                                     .collect(Collectors.toList());
 
-                                List<String> ignoredMethods = new ArrayList<>();
-                                if (finalConfig != null && finalConfig.ignoredMethods != null) {
-                                    for (MLVMethod mlvMethod : finalConfig.ignoredMethods) {
-                                        ignoredMethods.add(mlvMethod.name);
-                                    }
-                                }
-
-                                //System.out.println(method.getNode().name + " " + opcodes);
+                                //System.out.println(method.getNode().name + " " + methodOpcodes);
                                 if (!methodOpcodes.contains(Opcodes.DUP2_X1) && !methodOpcodes.contains(Opcodes.DUP2_X2)) {
-                                    if (!ignoredMethods.isEmpty()) {
-                                        if (!ignoredMethods.contains(method.getNode().name)) {
+                                    if (!ignoredMethodsPatterns.isEmpty()) {
+                                        if (!isMethodIgnored(ignoredMethodsPatterns, aClass, method)) {
                                             preprocessor.markForCompilation(method);
                                         } else {
                                             System.out.println("Method \""
                                                 + method.getNode().name
                                                 + "\" (Parent: \"" + aClass.getName()
                                                 + "\", desc: \"" + method.getNode().desc
-                                                + "\") ignored by config.");
+                                                + "\") will be ignored by config.");
                                         }
                                     } else {
                                         preprocessor.markForCompilation(method);
                                     }
                                 } else {
-                                    System.out.println("Method \""
+                                    System.out.println("Unsupported opcode! Method \""
                                         + method.getNode().name
                                         + "\" (Parent: \"" + aClass.getName()
                                         + "\", desc: \"" + method.getNode().desc
-                                        + "\") ignored.");
+                                        + "\") will be ignored.");
                                 }
                             }
                         }
@@ -133,18 +143,20 @@ public class CLIMain {
                 , new AnnotationPreprocessor()
         ));
 
+        String inJarPath = parse.getOptionValue("inJarNativesPath");
+
         try {
             System.out.println("Loading input...");
             mlv.loadInput(new File(parse.getOptionValue("inputJar")));
 
             System.out.println("Compiling...");
-            mlv.preprocessAndCompile();
+            mlv.preprocessAndCompile(inJarPath);
 
             System.out.println("Writing...");
             mlv.writeOutput(new File(parse.getOptionValue("outputJar")));
 
             System.out.println("Optimizing IR...");
-            mlv.optimize(3);
+            mlv.optimize(1/*3*/);
         } catch (Exception e) {
             System.err.println("Exception while compiling: ");
 
@@ -153,7 +165,8 @@ public class CLIMain {
         }
 
         String llvmDir = parse.getOptionValue("llvmDir");
-        String outputDir = parse.getOptionValue("outputDir");
+        boolean createNatives = parse.hasOption("createNatives");
+        String outputDir = !createNatives ? System.getProperty("java.io.tmpdir") : parse.getOptionValue("outputDir");
 
         try {
             File tmpIROutput = File.createTempFile("llvmir", ".ll");
@@ -172,11 +185,39 @@ public class CLIMain {
                     var oss = Arrays.stream(parse.getOptionValue("compileFor").split(",")).map(OS::fromString).collect(
                             Collectors.toSet());
 
+                    Map<String, String> env = new HashMap<>();
+                    env.put("create", "true");
+
+                    URI uri = URI.create("jar:" + Paths.get(parse.getOptionValue("outputJar")).toUri());
+
                     for (OS os : oss) {
                         if (os == OS.MAC)
                             throw new IllegalStateException("Mac OS is not supported yet");
 
                         compileFor(tmpIROutput, llvmDir, outputDir, os);
+
+                        try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+                            String fileName;
+                            switch (os) {
+                                case WINDOWS:
+                                    fileName = "win64.dll";
+                                    break;
+                                case LINUX:
+                                    fileName = "linux64.so";
+                                    break;
+                                default:
+                                    throw new IllegalStateException("Unexpected value: " + os);
+                            }
+                            Path pathToLib = Paths.get(getFilePath(outputDir, fileName));
+                            Path nf = fs.getPath((inJarPath == null ? "META-INF/natives/" : inJarPath) + fileName);
+
+                            Files.createDirectories(nf.getParent());
+                            Files.copy(pathToLib, nf, StandardCopyOption.REPLACE_EXISTING);
+
+                            if (!createNatives) {
+                                pathToLib.toFile().delete();
+                            }
+                        }
                     }
 
                 }
@@ -286,6 +327,41 @@ public class CLIMain {
         return new File(basePath, fileName).getAbsolutePath();
     }
 
+    private static Pattern compileExcludePattern(String s) {
+        StringBuilder sb = new StringBuilder();
+
+        char[] chars = s.toCharArray();
+
+        for (int i = 0; i < chars.length; i++) {
+            char c = chars[i];
+
+            if (c == '*') {
+                if (chars.length - 1 != i && chars[i + 1] == '*') {
+                    sb.append(".*");
+                    i++;
+                } else {
+                    sb.append("[^/]*");
+                }
+            } else if (c == '.') {
+                sb.append('/');
+            } else {
+                sb.append(c);
+            }
+        }
+
+        return Pattern.compile(sb.toString());
+    }
+
+    private static boolean isMethodIgnored(List<MLVCLIConfigPair> patterns, CompilerClass aClass, CompilerMethod method) {
+        for (MLVCLIConfigPair ignoredMethodsPattern : patterns) {
+            return ignoredMethodsPattern.ownerPattern.matcher(aClass.getName()).matches()
+                && ignoredMethodsPattern.namePattern.matcher(method.getNode().name).matches()
+                && ignoredMethodsPattern.descPattern.matcher(method.getNode().desc).matches();
+        }
+
+        return false;
+    }
+
     @SuppressWarnings("unused")
     private static class MLVCLIConfig {
         private MLVMethod[] ignoredMethods;
@@ -296,6 +372,18 @@ public class CLIMain {
         private String owner;
         private String name;
         private String desc;
+    }
+
+    private static class MLVCLIConfigPair {
+        private final Pattern ownerPattern;
+        private final Pattern namePattern;
+        private final Pattern descPattern;
+
+        private MLVCLIConfigPair(Pattern ownerPattern, Pattern namePattern, Pattern descPattern) {
+            this.ownerPattern = ownerPattern;
+            this.namePattern = namePattern;
+            this.descPattern = descPattern;
+        }
     }
 
     enum OS {

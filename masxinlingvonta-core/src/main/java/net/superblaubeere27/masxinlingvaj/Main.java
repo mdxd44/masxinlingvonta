@@ -44,7 +44,7 @@ public class Main {
 
         mlv.loadInput(new File("testJars/liquidbounce.jar"));
 
-        mlv.preprocessAndCompile();
+        mlv.preprocessAndCompile("");
 
         mlv.writeOutput(new File("testJars/liquidbounce-obf.jar"));
 

@@ -23,6 +23,7 @@ import static org.bytedeco.llvm.global.LLVM.*;
 
 public class MLV {
     private static final ExecutorServiceFactory EXECUTOR_SERVICE_FACTORY = () -> Executors.newFixedThreadPool(12);
+    public static String inJarNativesPath;
 
     private final CompilerPreprocessor preprocessor;
     private InputLoader.ReadInput input;
@@ -36,7 +37,8 @@ public class MLV {
         this.input = InputLoader.loadFiles(Collections.singletonList(jar.toURI().toURL()), EXECUTOR_SERVICE_FACTORY);
     }
 
-    public void preprocessAndCompile() throws Exception {
+    public void preprocessAndCompile(String inJarNativesPath1) throws Exception {
+        inJarNativesPath = inJarNativesPath1;
         this.compiler = new MLVCompiler(this.input.getClassNodes());
 
         preprocessor.preprocess(compiler);
