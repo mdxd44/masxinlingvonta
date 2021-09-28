@@ -353,13 +353,11 @@ public class CLIMain {
     }
 
     private static boolean isMethodIgnored(List<MLVCLIConfigPair> patterns, CompilerClass aClass, CompilerMethod method) {
-        for (MLVCLIConfigPair ignoredMethodsPattern : patterns) {
-            return ignoredMethodsPattern.ownerPattern.matcher(aClass.getName()).matches()
-                && ignoredMethodsPattern.namePattern.matcher(method.getNode().name).matches()
-                && ignoredMethodsPattern.descPattern.matcher(method.getNode().desc).matches();
-        }
-
-        return false;
+        return patterns.stream()
+            .anyMatch(pattern ->
+                pattern.ownerPattern.matcher(aClass.getName()).matches()
+                    && pattern.namePattern.matcher(method.getNode().name).matches()
+                    && pattern.descPattern.matcher(method.getNode().desc).matches());
     }
 
     @SuppressWarnings("unused")
