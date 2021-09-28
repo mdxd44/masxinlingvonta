@@ -28,7 +28,7 @@ public class LoaderAdderProstprocessor extends AbstractPostprocessor {
             injectClass = aClass;
             injectClassNode = injectClass.getClassNode();
             clInit = checkForClinit(injectClassNode);
-            if (clInit == null) {
+            if (clInit == null && !injectClassNode.name.matches("^.*\\$[0-9]+$")) {
                 break;
             }
         }
